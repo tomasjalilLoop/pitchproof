@@ -22,7 +22,8 @@
   --color-accent-chip-2: #e0ecdf;/* "Top 12%" chip bg */
 
   --color-error: #b23a2f;        /* validation errors */
-  --color-gold: #b8862f;         /* "Fix these first" numbers */
+  --color-gold: #b8862f;         /* "Fix these first" / watch-out numbers, "Reviewing" fg */
+  --color-gold-chip: #f6ecd6;    /* "Reviewing" status bg, sample-data banner bg */
 
   --color-on-dark: #f6f2e9;      /* labels on ink/green surfaces */
 
