@@ -1,5 +1,9 @@
 "use strict";
 
+// Carga .env en local. En Railway no hay archivo .env y usa las env vars
+// inyectadas por la plataforma; require es inofensivo si el archivo no existe.
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
