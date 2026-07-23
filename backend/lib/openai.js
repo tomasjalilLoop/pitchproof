@@ -81,12 +81,14 @@ async function extraerSenal(deckText) {
     `{
   "vertical": string,
   "modelo_negocio": string,
+  "etapa": "pre-seed"|"seed"|"serie A"|"serie B+"|"no especificado",
   "kpis": [{ "nombre": string, "valor": string, "verificable": boolean }],
   "claims": [{ "texto": string, "categoria": "roadmap"|"cliente"|"mercado"|"equipo"|"otro" }],
   "team": { "menciona_equipo": boolean, "resumen": string },
   "mercado": { "tam_mencionado": boolean, "metodo": "top-down"|"bottom-up"|"no especificado", "resumen": string }
 }`,
     "Regla para kpis.verificable: poné false si el founder afirma un numero sin mostrar fuente, curva o metodo de calculo; true solo si hay evidencia visible.",
+    "Regla para etapa: inferila del monto del ask, la traccion y el lenguaje. Ej: sin revenue o idea temprana = pre-seed; primeros clientes/MRR bajo = seed; PMF y crecimiento con metricas = serie A; escala consolidada = serie B+. Si no hay senal, 'no especificado'.",
   ].join("\n");
 
   const user = `Texto del pitch deck:\n\n${deckText}`;

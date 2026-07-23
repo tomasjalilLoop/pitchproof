@@ -36,7 +36,7 @@ function extractTextFromSlideXml(xml) {
  * @param {Buffer} buffer - contenido del archivo .pptx
  * @returns {Promise<{ text: string, slideCount: number }>}
  */
-async function extractDeckText(buffer) {
+async function extractPptxText(buffer) {
   const zip = await JSZip.loadAsync(buffer);
 
   // Filtramos solo los slides reales (no notesSlide, no layouts, no masters)
@@ -71,4 +71,4 @@ async function extractDeckText(buffer) {
   return { text, slideCount: slideFiles.length };
 }
 
-module.exports = { extractDeckText };
+module.exports = { extractPptxText };

@@ -8,7 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 
-const { extractDeckText } = require("./lib/pptx");
+const { extractDeckText } = require("./lib/deck");
 const { extraerSenal, evaluarDeck } = require("./lib/openai");
 const db = require("./lib/db");
 
@@ -23,12 +23,14 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB, suficiente para un deck
   fileFilter: (_req, file, cb) => {
-    const isPptx =
-      /\.pptx$/i.test(file.originalname || "") ||
+    const name = file.originalname || "";
+    const ok =
+      /\.(pptx|pdf)$/i.test(name) ||
+      file.mimetype === "application/pdf" ||
       file.mimetype ===
         "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    if (!isPptx) {
-      return cb(new Error("El archivo debe ser un .pptx"));
+    if (!ok) {
+      return cb(new Error("El archivo debe ser un .pptx o .pdf"));
     }
     cb(null, true);
   },
@@ -53,10 +55,13 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
   let deckText;
   let slideCount;
   try {
-    const result = await extractDeckText(req.file.buffer);
+    const result = await extractDeckText(req.file.buffer, {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+    });
     deckText = result.text;
     slideCount = result.slideCount;
-    console.log(`[analyze] deck parseado: ${slideCount} slides, ${deckText.length} chars`);
+    console.log(`[analyze] deck parseado (${result.format}): ${slideCount} slides, ${deckText.length} chars`);
   } catch (err) {
     console.error("[analyze] error parseando pptx:", err.message);
     return res.status(400).json({ error: `No se pudo procesar el .pptx: ${err.message}` });
