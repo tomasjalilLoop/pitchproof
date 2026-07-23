@@ -10,6 +10,7 @@ const multer = require("multer");
 
 const { extractDeckText } = require("./lib/pptx");
 const { extraerSenal, evaluarDeck } = require("./lib/openai");
+const db = require("./lib/db");
 
 const app = express();
 
@@ -21,11 +22,21 @@ app.use(express.json());
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB, suficiente para un deck
+  fileFilter: (_req, file, cb) => {
+    const isPptx =
+      /\.pptx$/i.test(file.originalname || "") ||
+      file.mimetype ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    if (!isPptx) {
+      return cb(new Error("El archivo debe ser un .pptx"));
+    }
+    cb(null, true);
+  },
 });
 
 // Healthcheck para Railway / smoke test rapido.
 app.get("/", (_req, res) => {
-  res.json({ ok: true, service: "pitchproof-backend" });
+  res.json({ ok: true, service: "pitchproof-backend", db: db.isEnabled() });
 });
 
 // ---------------------------------------------------------------------------
@@ -40,10 +51,12 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
 
   // 2) Extraer texto del pptx
   let deckText;
+  let slideCount;
   try {
     const result = await extractDeckText(req.file.buffer);
     deckText = result.text;
-    console.log(`[analyze] deck parseado: ${result.slideCount} slides, ${deckText.length} chars`);
+    slideCount = result.slideCount;
+    console.log(`[analyze] deck parseado: ${slideCount} slides, ${deckText.length} chars`);
   } catch (err) {
     console.error("[analyze] error parseando pptx:", err.message);
     return res.status(400).json({ error: `No se pudo procesar el .pptx: ${err.message}` });
@@ -67,21 +80,91 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
     return res.status(500).json({ error: `Fallo la evaluacion/scoring: ${err.message}` });
   }
 
-  // 5) Respuesta final al front
+  // 5) Persistir (si hay DB). No debe tirar la request si falla el guardado.
+  let id = null;
+  try {
+    id = await db.saveAnalysis({
+      filename: req.file.originalname,
+      slideCount,
+      deckText,
+      extraccion,
+      vc_view: evaluacion.vc_view,
+      founder_view: evaluacion.founder_view,
+    });
+  } catch (err) {
+    console.error("[analyze] no se pudo guardar en DB (sigo igual):", err.message);
+  }
+
+  // 6) Respuesta final al front
   return res.json({
+    id,
     extraccion,
     vc_view: evaluacion.vc_view,
     founder_view: evaluacion.founder_view,
   });
 });
 
-// Handler de errores de multer (ej: archivo demasiado grande).
+// ---------------------------------------------------------------------------
+// GET /analyses  -> historial (metadata liviana)
+// ---------------------------------------------------------------------------
+app.get("/analyses", async (_req, res) => {
+  if (!db.isEnabled()) {
+    return res.status(503).json({ error: "Persistencia deshabilitada (sin DATABASE_URL)." });
+  }
+  try {
+    const rows = await db.listAnalyses();
+    res.json({ analyses: rows });
+  } catch (err) {
+    console.error("[analyses] error listando:", err.message);
+    res.status(500).json({ error: `No se pudo listar el historial: ${err.message}` });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /analyses/:id  -> un analisis completo
+// ---------------------------------------------------------------------------
+app.get("/analyses/:id", async (req, res) => {
+  if (!db.isEnabled()) {
+    return res.status(503).json({ error: "Persistencia deshabilitada (sin DATABASE_URL)." });
+  }
+  try {
+    const row = await db.getAnalysis(req.params.id);
+    if (!row) {
+      return res.status(404).json({ error: "Analisis no encontrado." });
+    }
+    res.json(row);
+  } catch (err) {
+    console.error("[analyses/:id] error:", err.message);
+    res.status(500).json({ error: `No se pudo traer el analisis: ${err.message}` });
+  }
+});
+
+// Handler de errores (ej: multer con archivo demasiado grande o no-.pptx).
 app.use((err, _req, res, _next) => {
   console.error("[error]", err.message);
   res.status(400).json({ error: err.message });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`PitchProof backend escuchando en :${PORT}`);
-});
+
+// Arranca la DB (idempotente) y despues levanta el server.
+async function start() {
+  db.init();
+  try {
+    await db.migrate();
+    if (db.isEnabled()) console.log("[db] tabla 'analyses' lista.");
+  } catch (err) {
+    console.error("[db] fallo la migracion (sigo sin persistencia):", err.message);
+  }
+  app.listen(PORT, () => {
+    console.log(`PitchProof backend escuchando en :${PORT}`);
+  });
+}
+
+// Solo arranca solo si se ejecuta directo (node index.js). Si se importa
+// (ej: tests), se expone `app` para levantarlo con un Pool inyectado.
+if (require.main === module) {
+  start();
+}
+
+module.exports = { app, start };
