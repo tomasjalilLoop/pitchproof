@@ -117,7 +117,8 @@ async function listAnalyses(limit = 50) {
   const { rows } = await pool.query(
     `SELECT id, created_at, filename, vertical, score_vc, score_founder, status,
             extraccion->>'etapa' AS etapa,
-            extraccion->>'ask'   AS ask
+            extraccion->>'ask'   AS ask,
+            extraccion->>'nombre_empresa' AS nombre_empresa
        FROM analyses
       ORDER BY created_at DESC
       LIMIT $1`,

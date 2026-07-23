@@ -37,4 +37,22 @@ async function extractPdfText(buffer) {
   return { text, slideCount: data.numpages || pages.length };
 }
 
-module.exports = { extractPdfText };
+/**
+ * Renderiza las paginas del PDF a imagenes PNG (para el fallback de vision
+ * cuando el PDF es escaneado / sin texto). Usa pdf-to-img (ESM) via import().
+ * @param {Buffer} buffer
+ * @param {number} maxPages
+ * @returns {Promise<Buffer[]>}
+ */
+async function renderPdfToImages(buffer, maxPages = 15) {
+  const { pdf } = await import("pdf-to-img");
+  const doc = await pdf(buffer, { scale: 2 });
+  const images = [];
+  for await (const img of doc) {
+    images.push(img);
+    if (images.length >= maxPages) break;
+  }
+  return images;
+}
+
+module.exports = { extractPdfText, renderPdfToImages };

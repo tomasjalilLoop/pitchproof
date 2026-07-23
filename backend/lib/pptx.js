@@ -71,4 +71,31 @@ async function extractPptxText(buffer) {
   return { text, slideCount: slideFiles.length };
 }
 
-module.exports = { extractPptxText };
+/**
+ * Extrae las imagenes embebidas del pptx (ppt/media/*) para el fallback de
+ * vision cuando las slides son imagenes sin texto. Descarta imagenes muy chicas
+ * (iconos/logos) por tamaño.
+ * @param {Buffer} buffer
+ * @param {number} maxImages
+ * @returns {Promise<Buffer[]>}
+ */
+async function extractPptxImages(buffer, maxImages = 15) {
+  const zip = await JSZip.loadAsync(buffer);
+  const names = Object.keys(zip.files)
+    .filter((n) => /^ppt\/media\/.*\.(png|jpe?g)$/i.test(n))
+    .sort((a, b) => {
+      const na = parseInt((a.match(/(\d+)\.\w+$/) || [])[1] || "0", 10);
+      const nb = parseInt((b.match(/(\d+)\.\w+$/) || [])[1] || "0", 10);
+      return na - nb;
+    });
+
+  const images = [];
+  for (const name of names) {
+    const buf = await zip.files[name].async("nodebuffer");
+    if (buf.length >= 5000) images.push(buf); // descarta iconos/logos chicos
+    if (images.length >= maxImages) break;
+  }
+  return images;
+}
+
+module.exports = { extractPptxText, extractPptxImages };

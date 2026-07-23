@@ -20,6 +20,13 @@ export function companyNameFromFilename(filename) {
   return filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled deck'
 }
 
+/** [REAL] Nombre de la empresa: usa el que extrae la IA (extraccion.nombre_empresa)
+ * y cae al derivado del filename si no hay señal. */
+export function pickName(aiName, filename) {
+  const n = (aiName || '').trim()
+  return n && !/no especificado/i.test(n) ? n : companyNameFromFilename(filename)
+}
+
 /** Iniciales para el avatar del founder. */
 function initialsFromName(name = '') {
   const parts = String(name).trim().split(/\s+/)
@@ -134,7 +141,7 @@ export function mapAnalysisSummary(row, { firm }) {
   const { ask, askNum } = parseAsk(row.ask) // [REAL] via extraccion->>'ask'
   return {
     id: row.id,
-    name: companyNameFromFilename(row.filename), // [DERIVED]
+    name: pickName(row.nombre_empresa, row.filename), // [REAL] nombre IA, fallback filename
     tagline: '', // [MOCK] not in list payload
     stage: stageFromEtapa(row.etapa, row.id), // [REAL] via extraccion->>'etapa'
     sector: row.vertical || '—', // [REAL]
@@ -163,7 +170,7 @@ export function mapAnalysisDetail(row, { firm }) {
 
   return {
     id: row.id,
-    name: companyNameFromFilename(row.filename), // [DERIVED]
+    name: pickName(extraccion.nombre_empresa, row.filename), // [REAL] nombre IA, fallback filename
     tagline: extraccion.modelo_negocio || '', // [REAL-ish] business model as a one-liner
     stage: stageFromEtapa(extraccion.etapa, row.id), // [REAL]
     sector, // [REAL]
@@ -181,6 +188,14 @@ export function mapAnalysisDetail(row, { firm }) {
     founders: foundersFromProfiles(row.team_profiles), // [REAL] LinkedIn scrapeado vía Apify
     teamNote: extraccion.team?.resumen || '', // fallback: resumen de equipo del deck [REAL]
     slides: Array.from({ length: row.slide_count || 0 }, () => ''), // [REAL count] no titles
+    // [REAL] Vista founder (startup) para el toggle del detalle del console.
+    founderView: {
+      score: Number(founder.score_general ?? 0),
+      strengths: founder.fortalezas || [],
+      improvements: founder.areas_a_mejorar || [],
+      hypotheses: founder.hipotesis_pmf_a_testear || [],
+      summary: founder.resumen_constructivo || '',
+    },
     sample: false,
   }
 }

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { toDetail } from './viewmodel.js'
 import DeckHeader from './detail/DeckHeader.jsx'
+import StartupView from './detail/StartupView.jsx'
 import ActionBar from './detail/ActionBar.jsx'
 import TractionGrid from './detail/TractionGrid.jsx'
 import CategoryScores from './detail/CategoryScores.jsx'
@@ -20,6 +22,17 @@ import ThesisMatch from './detail/ThesisMatch.jsx'
  */
 export default function DetailView({ deck, status, onBack, onSetStatus }) {
   const d = toDetail(deck, status)
+  const [view, setView] = useState('vc')
+
+  // Founder-facing data, with safe defaults if the data layer hasn't populated it.
+  const founderView = {
+    score: 0,
+    strengths: [],
+    improvements: [],
+    hypotheses: [],
+    summary: '',
+    ...(deck && deck.founderView ? deck.founderView : {}),
+  }
 
   const onDownload = () => {
     // Seam: wire to the real deck file once the backend serves it.
@@ -35,26 +48,53 @@ export default function DetailView({ deck, status, onBack, onSetStatus }) {
 
       <DeckHeader d={d} />
 
-      <ActionBar
-        onInterested={() => onSetStatus('Reviewing')}
-        onMeeting={() => onSetStatus('Meeting')}
-        onShortlist={() => onSetStatus('Shortlisted')}
-        onPass={() => onSetStatus('Passed')}
-        onDownload={onDownload}
-      />
-
-      <TractionGrid traction={d.traction} />
-
-      <CategoryScores categories={d.categories} />
-
-      <StrengthsWatchouts strengths={d.strengths} fixes={d.fixes} />
-
-      <SlideGrid slides={d.slides} />
-
-      <div className="bottom-row">
-        <FoundingTeam founders={d.founders} teamNote={d.teamNote} />
-        <ThesisMatch match={d.match} matchReason={d.matchReason} />
+      <div className="view-toggle" role="tablist" aria-label="Review perspective">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'vc'}
+          className={`view-toggle__btn${view === 'vc' ? ' is-active' : ''}`}
+          onClick={() => setView('vc')}
+        >
+          VC view
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'startup'}
+          className={`view-toggle__btn${view === 'startup' ? ' is-active' : ''}`}
+          onClick={() => setView('startup')}
+        >
+          Startup view
+        </button>
       </div>
+
+      {view === 'vc' ? (
+        <>
+          <ActionBar
+            onInterested={() => onSetStatus('Reviewing')}
+            onMeeting={() => onSetStatus('Meeting')}
+            onShortlist={() => onSetStatus('Shortlisted')}
+            onPass={() => onSetStatus('Passed')}
+            onDownload={onDownload}
+          />
+
+          <TractionGrid traction={d.traction} />
+
+          <CategoryScores categories={d.categories} />
+
+          <StrengthsWatchouts strengths={d.strengths} fixes={d.fixes} />
+
+          <SlideGrid slides={d.slides} />
+
+          <div className="bottom-row">
+            <FoundingTeam founders={d.founders} teamNote={d.teamNote} />
+            <ThesisMatch match={d.match} matchReason={d.matchReason} />
+          </div>
+        </>
+      ) : (
+        <StartupView founderView={founderView} />
+      )}
     </div>
   )
 }

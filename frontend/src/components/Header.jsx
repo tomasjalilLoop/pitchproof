@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 // Persistent top header. Nav links are in-page anchors (#how, #faq, #upload).
 export default function Header() {
   return (
@@ -11,6 +13,7 @@ export default function Header() {
       <nav className="header__nav">
         <a href="#how">How it works</a>
         <a href="#faq">FAQ</a>
+        <Link to="/console">VC Console</Link>
         <a href="#upload" className="is-cta">
           Upload a deck →
         </a>
