@@ -6,7 +6,6 @@ import ActionBar from './detail/ActionBar.jsx'
 import TractionGrid from './detail/TractionGrid.jsx'
 import CategoryScores from './detail/CategoryScores.jsx'
 import StrengthsWatchouts from './detail/StrengthsWatchouts.jsx'
-import SlideGrid from './detail/SlideGrid.jsx'
 import FoundingTeam from './detail/FoundingTeam.jsx'
 import ThesisMatch from './detail/ThesisMatch.jsx'
 
@@ -84,8 +83,6 @@ export default function DetailView({ deck, status, onBack, onSetStatus }) {
           <CategoryScores categories={d.categories} />
 
           <StrengthsWatchouts strengths={d.strengths} fixes={d.fixes} />
-
-          <SlideGrid slides={d.slides} />
 
           <div className="bottom-row">
             <FoundingTeam founders={d.founders} teamNote={d.teamNote} />
