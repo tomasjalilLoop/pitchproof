@@ -1,4 +1,19 @@
-node_modules/
-.env
-*.log
+# Root-level ignores for the monorepo. Each app also has its own .gitignore.
 .DS_Store
+
+# Dependencies (also ignored per-app)
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Env files — never commit real secrets
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea

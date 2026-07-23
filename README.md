@@ -1,44 +1,34 @@
-# PitchProof — Backend
+# Pitch Proof
 
-Pre-screening automático de pitch decks (`.pptx`). Un founder sube el deck y recibe
-dos vistas: una **VC** (score + red flags, dura) y una **founder** (feedback constructivo + hipótesis de PMF).
+Pre-screening de pitch decks con IA para founders early-stage. Monorepo con dos apps:
 
-## Stack
-Node 18+ · Express · CORS · Multer (memoria) · JSZip · fetch nativo · OpenAI `gpt-4o`.
-
-## Correr local
-```bash
-npm install
-cp .env.example .env   # y completá OPENAI_API_KEY
-npm start
 ```
-Escucha en `PORT` (default `3000`).
-
-## Endpoint
-
-### `POST /analyze`
-`multipart/form-data`, campo **`deck`** = archivo `.pptx`.
-
-Flujo: extrae texto de las slides (`ppt/slides/slideN.xml` → nodos `<a:t>`) →
-llamada 1 a OpenAI (extracción estructurada) → llamada 2 (scoring + vistas).
-
-Respuesta:
-```json
-{ "extraccion": { ... }, "vc_view": { ... }, "founder_view": { ... } }
+pitchproof/
+├── frontend/   React + Vite — landing y flujo form → analyzing → email → results
+└── backend/    Node + Express — POST /analyze (.pptx) → OpenAI → vc_view / founder_view
 ```
 
-Ejemplo:
-```bash
-curl -X POST http://localhost:3000/analyze -F "deck=@mi-deck.pptx"
-```
+## Apps
 
-### `GET /`
-Healthcheck: `{ "ok": true, "service": "pitchproof-backend" }`.
+| App | Stack | Correr | Docs |
+|-----|-------|--------|------|
+| [`frontend/`](./frontend) | React 18, Vite | `cd frontend && npm install && npm run dev` | [README](./frontend/README.md) |
+| [`backend/`](./backend) | Express, Multer, JSZip, pg, OpenAI | `cd backend && npm install && npm start` | [README](./backend/README.md) |
 
-## Deploy en Railway
-Detecta Node automáticamente. Config en `railway.json` (`npm start`).
-Setear la env var **`OPENAI_API_KEY`** en el panel de Railway. `PORT` lo inyecta Railway.
+## Cómo se conectan
 
-## Notas
-- La API key sale de `process.env.OPENAI_API_KEY`, nunca se hardcodea ni se expone al cliente.
-- Estado en memoria (sin DB) — es un hackathon.
+El frontend llama al backend en `src/api/analysis.js`. Hoy ese archivo devuelve
+datos **mock**; el paso pendiente es apuntarlo al `POST /analyze` real del backend.
+
+⚠️ **Contrato aún no alineado** (pendiente de resolver):
+- El backend acepta solo **`.pptx`**; el dropzone del frontend acepta pdf/ppt/pptx/key.
+- El backend devuelve `{ extraccion, vc_view, founder_view }`; el frontend espera
+  `AnalysisResult { score, categories, working, fixes, matches, ... }`.
+  Hay que mapear una forma a la otra (o alinear ambas).
+
+## Deploy
+
+- **Backend** → Railway. Como vive en `backend/`, en el servicio de Railway hay
+  que setear **Root Directory = `backend`** para que tome `railway.json` y
+  `package.json`. Env var requerida: `OPENAI_API_KEY`.
+- **Frontend** → build estático (`cd frontend && npm run build` → `frontend/dist`).
