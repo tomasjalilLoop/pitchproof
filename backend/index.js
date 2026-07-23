@@ -144,6 +144,32 @@ app.get("/analyses/:id", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// PATCH /analyses/:id/status  -> actualiza el estado de review (console queue)
+// body: { "status": "New"|"Reviewing"|"Shortlisted"|"Meeting"|"Passed" }
+// ---------------------------------------------------------------------------
+app.patch("/analyses/:id/status", async (req, res) => {
+  if (!db.isEnabled()) {
+    return res.status(503).json({ error: "Persistencia deshabilitada (sin DATABASE_URL)." });
+  }
+  const { status } = req.body || {};
+  if (!status) {
+    return res.status(400).json({ error: "Falta 'status' en el body." });
+  }
+  try {
+    const updated = await db.updateStatus(req.params.id, status);
+    if (!updated) {
+      return res.status(404).json({ error: "Analisis no encontrado." });
+    }
+    res.json(updated);
+  } catch (err) {
+    // Status inválido -> 400; el resto -> 500.
+    const invalid = /inv[aá]lido/i.test(err.message);
+    console.error("[analyses/:id/status] error:", err.message);
+    res.status(invalid ? 400 : 500).json({ error: err.message });
+  }
+});
+
 // Handler de errores (ej: multer con archivo demasiado grande o no-.pptx).
 app.use((err, _req, res, _next) => {
   console.error("[error]", err.message);

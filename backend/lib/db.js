@@ -69,7 +69,14 @@ async function migrate() {
       founder_view  JSONB NOT NULL
     );
   `);
+  // Estado del workflow de review (queue del console). Idempotente para DBs ya creadas.
+  await pool.query(
+    `ALTER TABLE analyses ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'New';`
+  );
 }
+
+// Estados válidos del workflow (coinciden con las keys del console/status.js).
+const VALID_STATUSES = ['New', 'Reviewing', 'Shortlisted', 'Meeting', 'Passed'];
 
 /**
  * Guarda un análisis y devuelve el id. Si la DB está deshabilitada, devuelve null.
@@ -103,7 +110,9 @@ async function saveAnalysis({ filename, slideCount, deckText, extraccion, vc_vie
 async function listAnalyses(limit = 50) {
   if (!enabled) return [];
   const { rows } = await pool.query(
-    `SELECT id, created_at, filename, vertical, score_vc, score_founder
+    `SELECT id, created_at, filename, vertical, score_vc, score_founder, status,
+            extraccion->>'etapa' AS etapa,
+            extraccion->>'ask'   AS ask
        FROM analyses
       ORDER BY created_at DESC
       LIMIT $1`,
@@ -118,7 +127,7 @@ async function listAnalyses(limit = 50) {
 async function getAnalysis(id) {
   if (!enabled) return null;
   const { rows } = await pool.query(
-    `SELECT id, created_at, filename, slide_count, vertical, score_vc, score_founder,
+    `SELECT id, created_at, filename, slide_count, vertical, score_vc, score_founder, status,
             extraccion, vc_view, founder_view
        FROM analyses
       WHERE id = $1`,
@@ -127,4 +136,25 @@ async function getAnalysis(id) {
   return rows[0] || null;
 }
 
-module.exports = { init, setPool, isEnabled, migrate, saveAnalysis, listAnalyses, getAnalysis };
+/**
+ * Actualiza el status de review de un análisis.
+ * @returns {Promise<{id:string,status:string}|null>} null si no existe.
+ * @throws si el status no es válido.
+ */
+async function updateStatus(id, status) {
+  if (!enabled) return null;
+  if (!VALID_STATUSES.includes(status)) {
+    throw new Error(`Status inválido: '${status}'. Válidos: ${VALID_STATUSES.join(", ")}.`);
+  }
+  const { rows } = await pool.query(
+    `UPDATE analyses SET status = $2 WHERE id = $1 RETURNING id, status`,
+    [id, status]
+  );
+  return rows[0] || null;
+}
+
+module.exports = {
+  init, setPool, isEnabled, migrate,
+  saveAnalysis, listAnalyses, getAnalysis, updateStatus,
+  VALID_STATUSES,
+};

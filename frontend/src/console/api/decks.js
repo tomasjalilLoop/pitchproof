@@ -6,8 +6,8 @@
 // or yields an empty list, it falls back to the mock sample decks so the console
 // stays reviewable. Callers get a `sample` flag to surface that in the UI.
 //
-// Status is NOT persisted server-side yet, so overrides live in localStorage.
-// 👋 TOMI: replace `setStatusOverride` with a real PATCH /analyses/:id/status.
+// Status se persiste server-side vía PATCH /analyses/:id/status. localStorage
+// se mantiene como cache optimista/offline (y para el modo sample con mocks).
 // ============================================================================
 
 import { API_BASE_URL, PARTNER } from '../config.js'
@@ -73,9 +73,27 @@ export function setStatusOverride(id, status) {
   try {
     localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next))
   } catch {
-    /* ignore quota/availability errors — status just won't persist */
+    /* ignore quota/availability errors — status just won't persist locally */
   }
+  // Persistencia real en el backend (best-effort). Si falla (offline, modo
+  // sample con id mock, 404), el override local igual mantiene la UI coherente.
+  persistStatus(id, status)
   return next
+}
+
+/** PATCH best-effort del status al backend. No lanza. */
+async function persistStatus(id, status) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/analyses/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.info('[console] status no persistido en backend (queda local):', err.message)
+  }
 }
 
 /** Effective status = override ?? the deck's original status. */

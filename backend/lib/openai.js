@@ -82,6 +82,7 @@ async function extraerSenal(deckText) {
   "vertical": string,
   "modelo_negocio": string,
   "etapa": "pre-seed"|"seed"|"serie A"|"serie B+"|"no especificado",
+  "ask": string,                 // monto que levantan, ej "US$500K", "$2.5M"; "no especificado" si no aparece
   "kpis": [{ "nombre": string, "valor": string, "verificable": boolean }],
   "claims": [{ "texto": string, "categoria": "roadmap"|"cliente"|"mercado"|"equipo"|"otro" }],
   "team": { "menciona_equipo": boolean, "resumen": string },
