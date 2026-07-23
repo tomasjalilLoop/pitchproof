@@ -1,0 +1,60 @@
+/* ============================================================================
+   Design tokens — Pitch Proof
+   Source of truth: design_handoff_pitch_proof/README.md ("Design Tokens").
+   Change values here, never hardcode hex/px in components.
+   ========================================================================== */
+
+:root {
+  /* --- Colors --- */
+  --color-paper: #f6f2e9;        /* page background */
+  --color-card: #fbfaf6;         /* upload zone, cards, inputs backing */
+  --color-ink: #201d18;          /* headlines, primary button bg */
+  --color-body: #4a463f;         /* body copy */
+  --color-muted: #5a564d;        /* secondary body / notes */
+  --color-faint: #7a756c;        /* hints */
+  --color-faint-2: #8a857b;      /* captions */
+  --color-placeholder: #a49e92;  /* input placeholders */
+  --color-text-strong: #3a362f;  /* stronger body (bullets, verdict) */
+
+  --color-accent: #1f6f4f;       /* primary accent, links, scores, bars */
+  --color-accent-tint: #f0f6f1;  /* drag-hover bg, match card bg */
+  --color-accent-chip: #e5efe8;  /* "Optional" chip bg */
+  --color-accent-chip-2: #e0ecdf;/* "Top 12%" chip bg */
+
+  --color-error: #b23a2f;        /* validation errors */
+  --color-gold: #b8862f;         /* "Fix these first" numbers */
+
+  --color-on-dark: #f6f2e9;      /* labels on ink/green surfaces */
+
+  /* Hairlines */
+  --hairline: rgba(32, 29, 24, 0.12);
+  --hairline-strong: rgba(32, 29, 24, 0.16);
+  --hairline-soft: rgba(32, 29, 24, 0.1);
+  --hairline-input: rgba(32, 29, 24, 0.2);
+  --accent-hairline: rgba(31, 111, 79, 0.18);
+  --accent-hairline-strong: rgba(31, 111, 79, 0.3);
+  --accent-dashed: rgba(31, 111, 79, 0.45);
+
+  /* --- Typography --- */
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-body: 'Libre Franklin', system-ui, sans-serif;
+  --font-label: 'Space Grotesk', system-ui, sans-serif;
+
+  /* --- Radius --- */
+  --radius-input: 10px;
+  --radius-card: 14px;
+  --radius-btn: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 100px;
+
+  /* --- Layout max-widths --- */
+  --w-hero: 900px;
+  --w-upload: 720px;
+  --w-results: 900px;
+  --w-faq: 820px;
+  --w-wide: 1200px;
+  --w-how: 1000px;
+
+  /* --- Misc --- */
+  --pad-x: 56px;
+}
