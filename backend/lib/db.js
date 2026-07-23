@@ -73,6 +73,10 @@ async function migrate() {
   await pool.query(
     `ALTER TABLE analyses ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'New';`
   );
+  // Perfiles de LinkedIn del equipo (scrapeados via Apify). Nullable.
+  await pool.query(
+    `ALTER TABLE analyses ADD COLUMN IF NOT EXISTS team_profiles JSONB;`
+  );
 }
 
 // Estados válidos del workflow (coinciden con las keys del console/status.js).
@@ -81,13 +85,13 @@ const VALID_STATUSES = ['New', 'Reviewing', 'Shortlisted', 'Meeting', 'Passed'];
 /**
  * Guarda un análisis y devuelve el id. Si la DB está deshabilitada, devuelve null.
  */
-async function saveAnalysis({ filename, slideCount, deckText, extraccion, vc_view, founder_view }) {
+async function saveAnalysis({ filename, slideCount, deckText, extraccion, vc_view, founder_view, teamProfiles }) {
   if (!enabled) return null;
   const id = crypto.randomUUID();
   await pool.query(
     `INSERT INTO analyses
-      (id, filename, slide_count, deck_text, vertical, score_vc, score_founder, extraccion, vc_view, founder_view)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      (id, filename, slide_count, deck_text, vertical, score_vc, score_founder, extraccion, vc_view, founder_view, team_profiles)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
     [
       id,
       filename || null,
@@ -99,6 +103,7 @@ async function saveAnalysis({ filename, slideCount, deckText, extraccion, vc_vie
       JSON.stringify(extraccion),
       JSON.stringify(vc_view),
       JSON.stringify(founder_view),
+      teamProfiles && teamProfiles.length ? JSON.stringify(teamProfiles) : null,
     ]
   );
   return id;
@@ -128,7 +133,7 @@ async function getAnalysis(id) {
   if (!enabled) return null;
   const { rows } = await pool.query(
     `SELECT id, created_at, filename, slide_count, vertical, score_vc, score_founder, status,
-            extraccion, vc_view, founder_view
+            extraccion, vc_view, founder_view, team_profiles
        FROM analyses
       WHERE id = $1`,
     [id]

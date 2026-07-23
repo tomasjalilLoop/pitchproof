@@ -10,6 +10,7 @@ const multer = require("multer");
 
 const { extractDeckText } = require("./lib/deck");
 const { extraerSenal, evaluarDeck } = require("./lib/openai");
+const { scrapeLinkedInProfiles, publicIdFromUrl } = require("./lib/apify");
 const db = require("./lib/db");
 
 const app = express();
@@ -67,19 +68,39 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
     return res.status(400).json({ error: `No se pudo procesar el .pptx: ${err.message}` });
   }
 
-  // 3) Llamada 1 — extraccion estructurada
+  // 2.5) Enriquecimiento de equipo: si vienen URLs de LinkedIn en 'founders',
+  // las scrapeamos con Apify. Degradable: si falla, seguimos sin perfiles.
+  let teamProfiles = [];
+  try {
+    const founders = parseFounders(req.body?.founders);
+    const urls = founders.map((f) => f.url).filter(isLinkedInUrl);
+    if (urls.length) {
+      const profiles = await scrapeLinkedInProfiles(urls);
+      // Adjuntamos el rol declarado por el founder (matcheando por public id).
+      const roleBySlug = new Map(
+        founders.filter((f) => isLinkedInUrl(f.url)).map((f) => [publicIdFromUrl(f.url), f.role || ""])
+      );
+      teamProfiles = profiles.map((p) => ({ ...p, role: roleBySlug.get(p.publicIdentifier) || p.role || "" }));
+      console.log(`[analyze] LinkedIn: ${urls.length} URLs -> ${teamProfiles.length} perfiles scrapeados`);
+    }
+  } catch (err) {
+    console.error("[analyze] scraping de LinkedIn fallo (sigo sin perfiles):", err.message);
+    teamProfiles = [];
+  }
+
+  // 3) Llamada 1 — extraccion estructurada (enriquecida con LinkedIn si hay)
   let extraccion;
   try {
-    extraccion = await extraerSenal(deckText);
+    extraccion = await extraerSenal(deckText, teamProfiles);
   } catch (err) {
     console.error("[analyze] error en llamada 1 (extraccion):", err.message);
     return res.status(500).json({ error: `Fallo la extraccion estructurada: ${err.message}` });
   }
 
-  // 4) Llamada 2 — scoring + vistas (usa el JSON de la 1 + el texto original)
+  // 4) Llamada 2 — scoring + vistas (usa el JSON de la 1 + el texto + LinkedIn)
   let evaluacion;
   try {
-    evaluacion = await evaluarDeck(extraccion, deckText);
+    evaluacion = await evaluarDeck(extraccion, deckText, teamProfiles);
   } catch (err) {
     console.error("[analyze] error en llamada 2 (evaluacion):", err.message);
     return res.status(500).json({ error: `Fallo la evaluacion/scoring: ${err.message}` });
@@ -95,6 +116,7 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
       extraccion,
       vc_view: evaluacion.vc_view,
       founder_view: evaluacion.founder_view,
+      teamProfiles,
     });
   } catch (err) {
     console.error("[analyze] no se pudo guardar en DB (sigo igual):", err.message);
@@ -106,8 +128,24 @@ app.post("/analyze", upload.single("deck"), async (req, res) => {
     extraccion,
     vc_view: evaluacion.vc_view,
     founder_view: evaluacion.founder_view,
+    team_profiles: teamProfiles,
   });
 });
+
+// Parsea el campo 'founders' del multipart (viene como JSON string desde el front).
+function parseFounders(raw) {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function isLinkedInUrl(url) {
+  return typeof url === "string" && /linkedin\.com\/in\//i.test(url.trim());
+}
 
 // ---------------------------------------------------------------------------
 // GET /analyses  -> historial (metadata liviana)

@@ -20,6 +20,27 @@ export function companyNameFromFilename(filename) {
   return filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Untitled deck'
 }
 
+/** Iniciales para el avatar del founder. */
+function initialsFromName(name = '') {
+  const parts = String(name).trim().split(/\s+/)
+  return ((parts[0] || '')[0] || '') + ((parts[1] || '')[0] || '')
+}
+
+// [REAL] Founding team desde los perfiles de LinkedIn scrapeados (team_profiles).
+// Shape que consume FoundingTeam.jsx: { name, initials, role, detail, url }.
+export function foundersFromProfiles(profiles = []) {
+  return (Array.isArray(profiles) ? profiles : []).map((p) => {
+    const top = (p.experience && p.experience[0]) || null
+    return {
+      name: p.name || 'Founder',
+      initials: initialsFromName(p.name).toUpperCase() || 'F',
+      role: p.role || (top && top.role) || '—',
+      detail: p.headline || (top ? `${top.role} @ ${top.company}` : p.location || ''),
+      url: p.url || '',
+    }
+  })
+}
+
 /** [REAL] Relative "submitted" label from created_at. */
 export function daysSince(createdAt) {
   if (!createdAt) return 0
@@ -157,8 +178,8 @@ export function mapAnalysisDetail(row, { firm }) {
     strengths: founder.fortalezas || [], // [REAL]
     fixes: vc.red_flags || [], // [REAL]
     matchReason: deriveMatchReason(firm, sector), // [MOCK]
-    founders: [], // [MOCK] backend has no structured founder list…
-    teamNote: extraccion.team?.resumen || '', // …only this free-text team summary [REAL]
+    founders: foundersFromProfiles(row.team_profiles), // [REAL] LinkedIn scrapeado vía Apify
+    teamNote: extraccion.team?.resumen || '', // fallback: resumen de equipo del deck [REAL]
     slides: Array.from({ length: row.slide_count || 0 }, () => ''), // [REAL count] no titles
     sample: false,
   }

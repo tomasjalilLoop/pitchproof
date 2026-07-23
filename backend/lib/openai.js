@@ -70,10 +70,39 @@ async function chatJson({ system, user }) {
   }
 }
 
+// Formatea los perfiles de LinkedIn (scrapeados via Apify) para meterlos en el
+// prompt. Devuelve "" si no hay perfiles.
+function formatTeamProfiles(profiles) {
+  if (!Array.isArray(profiles) || profiles.length === 0) return "";
+  const blocks = profiles.map((p, i) => {
+    const exp = (p.experience || [])
+      .slice(0, 4)
+      .map((e) => `    - ${e.role || "?"} @ ${e.company || "?"} (${e.duration || "?"})`)
+      .join("\n");
+    const edu = (p.education || [])
+      .slice(0, 3)
+      .map((e) => `    - ${[e.degree, e.field].filter(Boolean).join(" ") || "estudios"} @ ${e.school || "?"} (${e.period || "?"})`)
+      .join("\n");
+    return [
+      `Perfil ${i + 1}${p.role ? ` (rol declarado: ${p.role})` : ""}: ${p.name || p.url}`,
+      p.headline ? `  Headline: ${p.headline}` : "",
+      p.location ? `  Ubicacion: ${p.location}` : "",
+      p.about ? `  About: ${p.about}` : "",
+      exp ? `  Experiencia:\n${exp}` : "",
+      edu ? `  Educacion:\n${edu}` : "",
+      p.skills?.length ? `  Skills: ${p.skills.join(", ")}` : "",
+      p.followers != null ? `  Seguidores: ${p.followers}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  });
+  return `Perfiles de LinkedIn del equipo (datos REALES scrapeados, no del deck):\n\n${blocks.join("\n\n")}`;
+}
+
 // ---------------------------------------------------------------------------
 // LLAMADA 1 — extraccion estructurada (sin opinar todavia)
 // ---------------------------------------------------------------------------
-async function extraerSenal(deckText) {
+async function extraerSenal(deckText, teamProfiles) {
   const system = [
     "Sos un analista que lee pitch decks y extrae senal estructurada sin opinar todavia.",
     "No evalues ni puntues: solo extrae lo que el deck afirma.",
@@ -90,9 +119,14 @@ async function extraerSenal(deckText) {
 }`,
     "Regla para kpis.verificable: poné false si el founder afirma un numero sin mostrar fuente, curva o metodo de calculo; true solo si hay evidencia visible.",
     "Regla para etapa: inferila del monto del ask, la traccion y el lenguaje. Ej: sin revenue o idea temprana = pre-seed; primeros clientes/MRR bajo = seed; PMF y crecimiento con metricas = serie A; escala consolidada = serie B+. Si no hay senal, 'no especificado'.",
+    "Si se incluyen perfiles de LinkedIn del equipo, usalos para enriquecer team.resumen con la experiencia y educacion REALES de los founders (no solo lo que dice el deck).",
   ].join("\n");
 
-  const user = `Texto del pitch deck:\n\n${deckText}`;
+  const profilesBlock = formatTeamProfiles(teamProfiles);
+  const user = [
+    `Texto del pitch deck:\n\n${deckText}`,
+    profilesBlock ? `\n\n${profilesBlock}` : "",
+  ].join("");
 
   return chatJson({ system, user });
 }
@@ -100,7 +134,7 @@ async function extraerSenal(deckText) {
 // ---------------------------------------------------------------------------
 // LLAMADA 2 — razonamiento y scoring (alimenta dos vistas)
 // ---------------------------------------------------------------------------
-async function evaluarDeck(extraccion, deckText) {
+async function evaluarDeck(extraccion, deckText, teamProfiles) {
   const system = [
     "Sos un inversor senior evaluando este deck con rigor, pero el output debe alimentar DOS vistas distintas:",
     "una vista VC (dura, directa, con red flags) y una vista founder (constructiva, accionable).",
@@ -130,14 +164,17 @@ async function evaluarDeck(extraccion, deckText) {
     "evidencia_pmf debe basarse en retencion y uso organico, NO en growth vanidoso.",
     "resumen_duro: 2-3 frases, directo, sin suavizar.",
     "hipotesis_pmf_a_testear: sugerencias accionables y concretas (ej: 'instrumentar cohortes de retencion a 30/60/90 dias').",
+    "Si se incluyen perfiles de LinkedIn del equipo, PONDERALOS fuerte en team_market_fit (experiencia previa relevante, fits founder-mercado, señales de ejecucion) y mencionalos explicitamente en resumen_duro y resumen_constructivo. Si no hay perfiles, evalua el equipo solo con lo que dice el deck.",
   ].join("\n");
 
+  const profilesBlock = formatTeamProfiles(teamProfiles);
   const user = [
     "Senal estructurada extraida del deck (JSON):",
     JSON.stringify(extraccion, null, 2),
     "",
     "Texto original del deck:",
     deckText,
+    profilesBlock ? `\n${profilesBlock}` : "",
   ].join("\n");
 
   return chatJson({ system, user });
