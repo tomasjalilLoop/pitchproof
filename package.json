@@ -1,0 +1,25 @@
+{
+  "name": "pitchproof-backend",
+  "version": "1.0.0",
+  "description": "Backend de PitchProof: pre-screening automatico de pitch decks (.pptx) con vista VC y vista founder.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "jszip": "^3.10.1",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
+  }
+}
