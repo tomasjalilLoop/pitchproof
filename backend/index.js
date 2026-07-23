@@ -208,6 +208,25 @@ app.patch("/analyses/:id/status", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// DELETE /analyses/:id  -> borra un analisis
+// ---------------------------------------------------------------------------
+app.delete("/analyses/:id", async (req, res) => {
+  if (!db.isEnabled()) {
+    return res.status(503).json({ error: "Persistencia deshabilitada (sin DATABASE_URL)." });
+  }
+  try {
+    const del = await db.deleteAnalysis(req.params.id);
+    if (!del) {
+      return res.status(404).json({ error: "Analisis no encontrado." });
+    }
+    res.json({ deleted: del.id });
+  } catch (err) {
+    console.error("[analyses/:id DELETE] error:", err.message);
+    res.status(500).json({ error: `No se pudo borrar: ${err.message}` });
+  }
+});
+
 // Handler de errores (ej: multer con archivo demasiado grande o no-.pptx).
 app.use((err, _req, res, _next) => {
   console.error("[error]", err.message);

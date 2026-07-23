@@ -159,8 +159,21 @@ async function updateStatus(id, status) {
   return rows[0] || null;
 }
 
+/**
+ * Borra un análisis por id.
+ * @returns {Promise<{id:string}|null>} null si no existía.
+ */
+async function deleteAnalysis(id) {
+  if (!enabled) return null;
+  const { rows } = await pool.query(
+    `DELETE FROM analyses WHERE id = $1 RETURNING id`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   init, setPool, isEnabled, migrate,
-  saveAnalysis, listAnalyses, getAnalysis, updateStatus,
+  saveAnalysis, listAnalyses, getAnalysis, updateStatus, deleteAnalysis,
   VALID_STATUSES,
 };
